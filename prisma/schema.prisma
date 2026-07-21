@@ -168,7 +168,7 @@ model Application {
   candidateName  String
   candidateEmail String
   candidatePhone String?
-  resumeUrl      String
+  resumeUrl      String?
   coverLetter    String?
 
   customAnswers Json @default("{}")

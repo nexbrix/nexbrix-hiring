@@ -17,10 +17,10 @@ export default function ApplyPage({
     loading,
     submitLoading,
     uploading,
-    uploadSuccess,
     error,
     success,
-    resumeUrl,
+    resumeFile,
+    customFiles,
     candidateName,
     candidateEmail,
     candidatePhone,
@@ -30,11 +30,10 @@ export default function ApplyPage({
     setCandidateEmail,
     setCandidatePhone,
     setCoverLetter,
-    setResumeUrl,
+    setResumeFile,
+    setCustomFile,
     setCustomAnswer,
     fetchJob,
-    uploadResume,
-    uploadCustomFile,
     submitApplication,
     setError,
     reset,
@@ -47,20 +46,22 @@ export default function ApplyPage({
     };
   }, [jobId, fetchJob, reset]);
 
-  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      await uploadResume(file);
+      setResumeFile(file);
+    } else {
+      setResumeFile(null);
     }
   };
 
-  const handleCustomFileChange = async (
+  const handleCustomFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     fieldName: string
   ) => {
     const file = e.target.files?.[0];
     if (file) {
-      await uploadCustomFile(file, fieldName);
+      setCustomFile(fieldName, file);
     }
   };
 
@@ -86,21 +87,16 @@ export default function ApplyPage({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!resumeUrl) {
-      setError("Please upload your resume to apply.");
-      return;
-    }
-
-    const payload = {
+    const validationPayload = {
       candidateName,
       candidateEmail,
       candidatePhone: candidatePhone || null,
-      resumeUrl,
+      resumeUrl: resumeFile ? "https://temp-upload-url-placeholder.com" : "",
       coverLetter: coverLetter || null,
       customAnswers,
     };
 
-    const parsed = applicationSchema.safeParse(payload);
+    const parsed = applicationSchema.safeParse(validationPayload);
     if (!parsed.success) {
       setError(parsed.error.issues[0].message);
       return;
@@ -208,16 +204,18 @@ export default function ApplyPage({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">Resume File *</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">Resume File</label>
                 <input
                   type="file"
-                  required={!resumeUrl}
                   accept=".pdf,.doc,.docx"
-                  onChange={handleResumeUpload}
+                  onChange={handleResumeChange}
                   className="mt-1 block w-full text-xs text-zinc-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer"
                 />
-                {uploading && <div className="text-xs text-teal-400 mt-1">Uploading resume to S3...</div>}
-                {uploadSuccess && <div className="text-xs text-emerald-400 mt-1">✓ Resume uploaded successfully.</div>}
+                {resumeFile && (
+                  <div className="text-xs text-emerald-400 mt-1">
+                    ✓ Selected: {resumeFile.name} (Uploads upon submit)
+                  </div>
+                )}
               </div>
             </div>
 
@@ -342,8 +340,10 @@ export default function ApplyPage({
                             onChange={(e) => handleCustomFileChange(e, field.name)}
                             className="block w-full text-xs text-zinc-400 file:mr-4 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer"
                           />
-                          {customAnswers[field.name] && (
-                            <div className="text-xs text-emerald-400 mt-1">✓ File uploaded successfully.</div>
+                          {customFiles[field.name] && (
+                            <div className="text-xs text-emerald-400 mt-1">
+                              ✓ Selected: {customFiles[field.name].name} (Uploads upon submit)
+                            </div>
                           )}
                         </div>
                       )}
@@ -358,7 +358,7 @@ export default function ApplyPage({
               disabled={submitLoading || uploading}
               className="w-full rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 py-3 text-sm font-bold text-black hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
             >
-              {submitLoading ? "Submitting application..." : "Submit Application"}
+              {submitLoading ? (uploading ? "Uploading files to S3..." : "Submitting application...") : "Submit Application"}
             </button>
           </form>
         </div>

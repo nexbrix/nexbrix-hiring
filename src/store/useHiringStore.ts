@@ -15,6 +15,7 @@ interface HiringState {
   createOrganization: (name: string, slug: string) => Promise<any>;
   fetchOrgData: () => Promise<void>;
   createJob: (jobData: any) => Promise<void>;
+  updateJob: (jobId: string, jobData: any) => Promise<void>;
 }
 
 export const useHiringStore = create<HiringState>((set, get) => ({
@@ -94,6 +95,21 @@ export const useHiringStore = create<HiringState>((set, get) => ({
       await get().fetchOrgData();
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "Failed to publish job";
+      set({ error: errorMsg });
+      throw new Error(errorMsg);
+    }
+  },
+
+  updateJob: async (jobId, jobData) => {
+    set({ error: "" });
+    try {
+      await axios.put(`/api/jobs/${jobId}`, {
+        organizationId: get().selectedOrg?.id,
+        ...jobData,
+      });
+      await get().fetchOrgData();
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || "Failed to update job";
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }
