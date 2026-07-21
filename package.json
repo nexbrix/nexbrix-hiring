@@ -7,7 +7,9 @@
     "prebuild": "bunx --bun prisma generate",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prepare": "husky",
+    "test": "jest"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1091.0",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/pg": "^8.11.0",
     "@types/react": "^19",
@@ -31,8 +34,11 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "husky": "^9.1.7",
+    "jest": "^30.4.2",
     "prisma": "^7.9.0",
     "tailwindcss": "^4",
+    "ts-jest": "^29.4.11",
     "typescript": "^5"
   },
   "ignoreScripts": [
