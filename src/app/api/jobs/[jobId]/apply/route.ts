@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { applicationSchema } from "@/lib/validations";
 
 export async function POST(
   request: NextRequest,
@@ -8,7 +9,6 @@ export async function POST(
   try {
     const { jobId } = await params;
 
-    // 1. Fetch the Job and its defined custom fields
     const job = await prisma.job.findUnique({
       where: { id: jobId },
       include: { customFields: true },
@@ -31,40 +31,30 @@ export async function POST(
       );
     }
 
-    // 2. Parse and validate candidate submission
     const body = await request.json().catch(() => ({}));
+
+    const parsed = applicationSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
+    }
+
     const {
       candidateName,
       candidateEmail,
       candidatePhone,
       resumeUrl,
       coverLetter,
-      customAnswers = {},
-    } = body;
+      customAnswers,
+    } = parsed.data;
 
-    // Verify required standard candidate fields
-    if (!candidateName || !candidateEmail || !resumeUrl) {
-      return NextResponse.json(
-        { error: "candidateName, candidateEmail, and resumeUrl are required." },
-        { status: 400 }
-      );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(candidateEmail)) {
-      return NextResponse.json(
-        { error: "Invalid candidateEmail address format." },
-        { status: 400 }
-      );
-    }
-
-    // 3. Process and validate custom field answers
     const validatedAnswers: Record<string, any> = {};
 
     for (const field of job.customFields) {
       const answer = customAnswers[field.name];
 
-      // Verify required custom questions
       if (
         field.required &&
         (answer === undefined || answer === null || answer === "")
@@ -75,7 +65,6 @@ export async function POST(
         );
       }
 
-      // If an answer is provided, validate its type/structure
       if (answer !== undefined && answer !== null && answer !== "") {
         if (field.type === "NUMBER") {
           const num = Number(answer);
@@ -116,7 +105,6 @@ export async function POST(
               }
               validatedAnswers[field.name] = selectedValue;
             } else {
-              // MULTI_SELECT (expect array)
               const answersArray = Array.isArray(answer)
                 ? answer.map(String)
                 : [String(answer)];
@@ -136,13 +124,11 @@ export async function POST(
             validatedAnswers[field.name] = answer;
           }
         } else {
-          // TEXT, TEXTAREA, FILE (save directly)
           validatedAnswers[field.name] = answer;
         }
       }
     }
 
-    // 4. Record candidate submission in Database
     const application = await prisma.application.create({
       data: {
         jobId,

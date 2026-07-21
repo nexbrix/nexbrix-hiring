@@ -2,10 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { organizationSchema } from "@/lib/validations";
+
+export async function GET() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const memberships = await prisma.member.findMany({
+      where: { userId: session.user.id },
+      include: { organization: true },
+    });
+
+    return NextResponse.json({
+      organizations: memberships.map((m) => m.organization),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to fetch organizations" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Get the authenticated session
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -18,31 +47,18 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-
-    // 2. Parse and validate the request body
     const body = await request.json().catch(() => ({}));
-    const { name, slug, logoUrl } = body;
 
-    if (!name || !slug) {
+    const parsed = organizationSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Organization name and slug are required." },
+        { error: parsed.error.issues[0].message },
         { status: 400 }
       );
     }
 
-    // Slug validation: lowercase letters, numbers, hyphens, and underscores
-    const slugRegex = /^[a-z0-9-_]+$/;
-    if (!slugRegex.test(slug)) {
-      return NextResponse.json(
-        {
-          error:
-            "Slug can only contain lowercase letters, numbers, hyphens, and underscores.",
-        },
-        { status: 400 }
-      );
-    }
+    const { name, slug, logoUrl } = parsed.data;
 
-    // 3. Check if slug is unique
     const existingOrg = await prisma.organization.findUnique({
       where: { slug },
     });
@@ -57,7 +73,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Create the Organization and Member linkage within a transaction
     const result = await prisma.$transaction(async (tx) => {
       const org = await tx.organization.create({
         data: {
@@ -67,7 +82,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const member = await tx.member.create({
+      await tx.member.create({
         data: {
           organizationId: org.id,
           userId,
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      return { org, member };
+      return { org };
     });
 
     return NextResponse.json(

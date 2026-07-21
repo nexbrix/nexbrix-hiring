@@ -2,22 +2,72 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { jobSchema } from "@/lib/validations";
 
-const VALID_FIELD_TYPES = [
-  "TEXT",
-  "TEXTAREA",
-  "NUMBER",
-  "SELECT",
-  "MULTI_SELECT",
-  "BOOLEAN",
-  "FILE",
-];
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get("organizationId");
 
-const VALID_JOB_STATUSES = ["DRAFT", "ACTIVE", "CLOSED"];
+    if (organizationId) {
+      const session = await auth.api.getSession({
+        headers: await headers(),
+      });
+
+      if (!session || !session.user) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+
+      const membership = await prisma.member.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId,
+            userId: session.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: "Forbidden" },
+          { status: 403 }
+        );
+      }
+
+      const jobs = await prisma.job.findMany({
+        where: { organizationId },
+        include: { customFields: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json({ jobs });
+    } else {
+      const jobs = await prisma.job.findMany({
+        where: { status: "ACTIVE" },
+        include: {
+          organization: {
+            select: { name: true, logoUrl: true },
+          },
+          customFields: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json({ jobs });
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Failed to fetch jobs" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Get current authenticated user session
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -30,9 +80,16 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.user.id;
-
-    // 2. Parse and validate the request body
     const body = await request.json().catch(() => ({}));
+
+    const parsed = jobSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
+    }
+
     const {
       organizationId,
       title,
@@ -42,31 +99,8 @@ export async function POST(request: NextRequest) {
       type,
       status,
       customFields,
-    } = body;
+    } = parsed.data;
 
-    if (!organizationId || !title || !description || !type) {
-      return NextResponse.json(
-        {
-          error:
-            "organizationId, title, description, and type are required fields.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate job status if provided
-    if (status && !VALID_JOB_STATUSES.includes(status)) {
-      return NextResponse.json(
-        {
-          error: `Invalid job status. Must be one of: ${VALID_JOB_STATUSES.join(
-            ", "
-          )}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // 3. Confirm authorization (User must be OWNER or ADMIN in target organization)
     const membership = await prisma.member.findUnique({
       where: {
         organizationId_userId: {
@@ -89,64 +123,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Validate custom fields definitions
-    if (customFields && !Array.isArray(customFields)) {
-      return NextResponse.json(
-        { error: "customFields must be an array of field configurations." },
-        { status: 400 }
-      );
-    }
-
-    const fieldsToCreate = [];
-    const fieldNames = new Set<string>();
-
-    for (const field of customFields || []) {
-      const { name, label, type: fieldType, required, options, placeholder, order } = field;
-
-      if (!name || !label || !fieldType) {
-        return NextResponse.json(
-          {
-            error:
-              "Each custom field configuration requires 'name', 'label', and 'type'.",
-          },
-          { status: 400 }
-        );
-      }
-
-      // Format name to underscore separated lowercase key (e.g. "github_url")
-      const sanitizedName = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
-
-      if (fieldNames.has(sanitizedName)) {
-        return NextResponse.json(
-          { error: `Duplicate custom field name key: '${sanitizedName}'.` },
-          { status: 400 }
-        );
-      }
-      fieldNames.add(sanitizedName);
-
-      if (!VALID_FIELD_TYPES.includes(fieldType)) {
-        return NextResponse.json(
-          {
-            error: `Invalid custom field type '${fieldType}'. Must be one of: ${VALID_FIELD_TYPES.join(
-              ", "
-            )}`,
-          },
-          { status: 400 }
-        );
-      }
-
-      fieldsToCreate.push({
+    const fieldsToCreate = customFields.map((field) => {
+      const sanitizedName = field.name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      return {
         name: sanitizedName,
-        label: label.trim(),
-        type: fieldType,
-        required: !!required,
-        options: Array.isArray(options) ? options.map(String) : [],
-        placeholder: placeholder ? placeholder.trim() : null,
-        order: typeof order === "number" ? order : 0,
-      });
-    }
+        label: field.label.trim(),
+        type: field.type,
+        required: field.required,
+        options: field.options,
+        placeholder: field.placeholder || null,
+        order: field.order,
+      };
+    });
 
-    // 5. Create Job and CustomFields in database
     const job = await prisma.job.create({
       data: {
         organizationId,

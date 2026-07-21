@@ -14,12 +14,6 @@ export interface PresignedUrlResponse {
   key: string;
 }
 
-/**
- * Generates a presigned URL for uploading a file to AWS S3.
- * @param fileName Original name of the file
- * @param fileType MIME type of the file (e.g. application/pdf)
- * @param expirationSeconds Expiration time in seconds (default is 1 hour)
- */
 export async function getUploadPresignedUrl(
   fileName: string,
   fileType: string,
@@ -30,7 +24,6 @@ export async function getUploadPresignedUrl(
     throw new Error("AWS_BUCKET_NAME environment variable is not defined");
   }
 
-  // Sanitize fileName to prevent path traversal or weird character issues in S3 keys
   const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
   const uniqueKey = `resumes/${Date.now()}_${Math.random()
     .toString(36)
