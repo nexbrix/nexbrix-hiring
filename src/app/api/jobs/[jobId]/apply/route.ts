@@ -4,7 +4,7 @@ import { applicationSchema } from "@/lib/validations";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: Promise<{ jobId: string }> },
 ) {
   try {
     const { jobId } = await params;
@@ -17,7 +17,7 @@ export async function POST(
     if (!job) {
       return NextResponse.json(
         { error: "Job posting not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -27,7 +27,7 @@ export async function POST(
           error:
             "This job posting is no longer active or accepting applications.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -37,7 +37,7 @@ export async function POST(
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0].message },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -50,7 +50,7 @@ export async function POST(
       customAnswers,
     } = parsed.data;
 
-    const validatedAnswers: Record<string, any> = {};
+    const validatedAnswers: Record<string, string | number | string[]> = {};
 
     for (const field of job.customFields) {
       const answer = customAnswers[field.name];
@@ -61,7 +61,7 @@ export async function POST(
       ) {
         return NextResponse.json(
           { error: `The custom field '${field.label}' is required.` },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -73,7 +73,7 @@ export async function POST(
               {
                 error: `The custom field '${field.label}' must be a valid number.`,
               },
-              { status: 400 }
+              { status: 400 },
             );
           }
           validatedAnswers[field.name] = num;
@@ -87,10 +87,10 @@ export async function POST(
               {
                 error: `The custom field '${field.label}' must be a boolean (true/false).`,
               },
-              { status: 400 }
+              { status: 400 },
             );
           }
-          validatedAnswers[field.name] = answer === true || answer === "true";
+          validatedAnswers[field.name] = answer;
         } else if (field.type === "SELECT" || field.type === "MULTI_SELECT") {
           if (field.options && field.options.length > 0) {
             if (field.type === "SELECT") {
@@ -100,7 +100,7 @@ export async function POST(
                   {
                     error: `Value '${selectedValue}' is not a valid option for '${field.label}'.`,
                   },
-                  { status: 400 }
+                  { status: 400 },
                 );
               }
               validatedAnswers[field.name] = selectedValue;
@@ -114,7 +114,7 @@ export async function POST(
                     {
                       error: `Value '${val}' is not a valid option for '${field.label}'.`,
                     },
-                    { status: 400 }
+                    { status: 400 },
                   );
                 }
               }
@@ -135,7 +135,7 @@ export async function POST(
         candidateName: candidateName.trim(),
         candidateEmail: candidateEmail.trim(),
         candidatePhone: candidatePhone ? candidatePhone.trim() : null,
-        resumeUrl: resumeUrl.trim(),
+        resumeUrl: resumeUrl ? resumeUrl.trim() : null,
         coverLetter: coverLetter ? coverLetter.trim() : null,
         customAnswers: validatedAnswers,
       },
@@ -146,13 +146,13 @@ export async function POST(
         message: "Application submitted successfully.",
         application,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Error submitting job application:", error);
     return NextResponse.json(
       { error: "Failed to submit job application" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

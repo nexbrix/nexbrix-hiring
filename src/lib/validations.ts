@@ -7,9 +7,9 @@ export const organizationSchema = z.object({
     .min(1, "Slug is required")
     .regex(
       /^[a-z0-9-_]+$/,
-      "Slug can only contain lowercase letters, numbers, hyphens, and underscores"
+      "Slug can only contain lowercase letters, numbers, hyphens, and underscores",
     ),
-  logoUrl: z.string().url().optional().or(z.literal("")),
+  logoUrl: z.url().optional().or(z.literal("")),
 });
 
 export const customFieldSchema = z.object({
@@ -45,7 +45,7 @@ export const applicationSchema = z.object({
   candidateName: z.string().min(1, "Candidate name is required"),
   candidateEmail: z.string().email("Invalid email address format"),
   candidatePhone: z.string().nullable().optional(),
-  resumeUrl: z.string().url("Invalid resume URL").optional().or(z.literal("")),
+  resumeUrl: z.url("Invalid resume URL").optional().or(z.literal("")),
   coverLetter: z.string().nullable().optional(),
-  customAnswers: z.record(z.any()).default({}),
+  customAnswers: z.record(z.string(), z.any()).default({}),
 });
