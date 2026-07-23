@@ -16,6 +16,7 @@ interface HiringState {
   fetchOrgData: () => Promise<void>;
   createJob: (jobData: any) => Promise<void>;
   updateJob: (jobId: string, jobData: any) => Promise<void>;
+  updateApplicationStatus: (appId: string, status: string) => Promise<void>;
 }
 
 export const useHiringStore = create<HiringState>((set, get) => ({
@@ -110,6 +111,25 @@ export const useHiringStore = create<HiringState>((set, get) => ({
       await get().fetchOrgData();
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "Failed to update job";
+      set({ error: errorMsg });
+      throw new Error(errorMsg);
+    }
+  },
+
+  updateApplicationStatus: async (appId, status) => {
+    // Optimistic update
+    set((state) => ({
+      applications: state.applications.map((app) =>
+        app.id === appId ? { ...app, status } : app
+      ),
+    }));
+    try {
+      await axios.patch(`/api/applications/${appId}`, { status });
+    } catch (err: any) {
+      // Revert on failure
+      await get().fetchOrgData();
+      const errorMsg =
+        err.response?.data?.error || "Failed to update application status";
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }

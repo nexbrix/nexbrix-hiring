@@ -2,25 +2,189 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
+
+  /* Black and White Theme Colors */
+  --black: #101010;
+  --gray-dark: #6e6e6e;
+  --gray-muted: #949494;
+  --gray-light: #b5b5b5;
+  --gray-soft: #dddddd;
+  --white: #ffffff;
+
+  /* Primary, Secondary & Actions */
+  --primary: #0a2924;
+  --secondary: #baebce;
+
+  /* Primary Variations */
+  --primary-50: #e7eae9;
+  --primary-100: #c4ccca;
+  --primary-200: #96a3a1;
+  --primary-300: #657875;
+  --primary-400: #36504b;
+  --primary-500: #0a2924;
+  --primary-600: #09231f;
+  --primary-700: #071d1a;
+  --primary-800: #061715;
+  --primary-900: #051210;
+
+  /* Actions */
+  --action-success: #0c830c;
+  --action-critical: #f44444;
+  --action-neutral-yellow: #ffc84b;
+  --action-neutral-blue: #4949ce;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), sans-serif;
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+
+  --color-primary-50: var(--primary-50);
+  --color-primary-100: var(--primary-100);
+  --color-primary-200: var(--primary-200);
+  --color-primary-300: var(--primary-300);
+  --color-primary-400: var(--primary-400);
+  --color-primary-500: var(--primary-500);
+  --color-primary-600: var(--primary-600);
+  --color-primary-700: var(--primary-700);
+  --color-primary-800: var(--primary-800);
+  --color-primary-900: var(--primary-900);
+
+  --color-action-success: var(--action-success);
+  --color-action-critical: var(--action-critical);
+  --color-action-neutral-yellow: var(--action-neutral-yellow);
+  --color-action-neutral-blue: var(--action-neutral-blue);
+
+  --color-primary-green: #16a34a;
+  --color-primary-navy: #0f172a;
+  --color-light-green: #dcfce7;
+  --color-light-gray: #f1f5f9;
+
+  --color-success: #16a34a;
+  --color-info: #3b82f6;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-neutral: #64748b;
+
+  /* Black and White Theme */
+  --color-black: var(--black);
+  --color-gray-dark: var(--gray-dark);
+  --color-gray-muted: var(--gray-muted);
+  --color-gray-light: var(--gray-light);
+  --color-gray-soft: var(--gray-soft);
+  --color-white: var(--white);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  button:not([disabled]),
+  [role="button"]:not([disabled]) {
+    cursor: pointer;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out both;
+}
+.animate-scale-in {
+  animation: scale-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-slide-in {
+  animation: slide-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Smooth Accordion/Collapse Grid Transition */
+.accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  opacity: 0;
+}
+
+.accordion-grid-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.accordion-grid-inner {
+  overflow: hidden;
+}
+
+.accordion-grid-open .accordion-grid-inner {
+  overflow: visible;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .tracking-tightest {
+    letter-spacing: -0.04em;
+  }
+  .grain-bg {
+    background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 6px 6px;
+  }
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+}
+
+/* Hide scrollbar on marquee */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
