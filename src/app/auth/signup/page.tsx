@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -11,28 +12,25 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
     try {
       const res = await authClient.signUp.email({ email, password, name });
       if (res?.error) {
-        setError(res.error.message || "Sign up failed. Please try again.");
+        toast.error(res.error.message ?? "Sign up failed. Please try again.");
       } else {
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      setError(err?.message || "An unexpected error occurred");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  // Password strength
   const strength = (() => {
     if (!password) return 0;
     let s = 0;
@@ -51,8 +49,7 @@ export default function SignupPage() {
       className="min-h-screen flex font-sans"
       style={{ background: "#f9f9f9", color: "#101010" }}
     >
-      {/* ── Left panel (branding) ─────────────────────────────────────── */}
-      <div
+     <div
         className="hidden lg:flex lg:w-2/5 flex-col justify-between p-10"
         style={{ background: "#101010" }}
       >
@@ -75,7 +72,7 @@ export default function SignupPage() {
             { icon: "✦", text: "Share one-click apply links with candidates" },
           ].map(({ icon, text }) => (
             <div key={text} className="flex items-start gap-3">
-              <span className="text-xs mt-0.5 flex-shrink-0" style={{ color: "#baebce" }}>
+              <span className="text-xs mt-0.5 shrink-0" style={{ color: "#baebce" }}>
                 {icon}
               </span>
               <span className="text-sm leading-relaxed" style={{ color: "#b5b5b5" }}>
@@ -113,25 +110,8 @@ export default function SignupPage() {
             </p>
           </div>
 
-          {error && (
-            <div
-              className="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl text-sm"
-              style={{
-                background: "#fff0f0",
-                border: "1px solid #fca5a5",
-                color: "#b91c1c",
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="flex-shrink-0 mt-0.5">
-                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M8 5v3M8 10.5v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-              {error}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name */}
+          
             <div>
               <label
                 htmlFor="signup-name"
