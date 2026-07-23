@@ -47,5 +47,5 @@ export const applicationSchema = z.object({
   candidatePhone: z.string().nullable().optional(),
   resumeUrl: z.url("Invalid resume URL").optional().or(z.literal("")),
   coverLetter: z.string().nullable().optional(),
-  customAnswers: z.record(z.string(), z.any()).default({}),
+  customAnswers: z.record(z.string(), z.unknown()).default({}),
 });

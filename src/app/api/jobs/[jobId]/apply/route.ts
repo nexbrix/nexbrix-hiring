@@ -50,7 +50,10 @@ export async function POST(
       customAnswers,
     } = parsed.data;
 
-    const validatedAnswers: Record<string, string | number | string[]> = {};
+    const validatedAnswers: Record<
+      string,
+      string | number | boolean | string[]
+    > = {};
 
     for (const field of job.customFields) {
       const answer = customAnswers[field.name];
@@ -90,7 +93,8 @@ export async function POST(
               { status: 400 },
             );
           }
-          validatedAnswers[field.name] = answer;
+          validatedAnswers[field.name] =
+            typeof answer === "boolean" ? answer : answer === "true";
         } else if (field.type === "SELECT" || field.type === "MULTI_SELECT") {
           if (field.options && field.options.length > 0) {
             if (field.type === "SELECT") {
@@ -121,10 +125,10 @@ export async function POST(
               validatedAnswers[field.name] = answersArray;
             }
           } else {
-            validatedAnswers[field.name] = answer;
+            validatedAnswers[field.name] = String(answer);
           }
         } else {
-          validatedAnswers[field.name] = answer;
+          validatedAnswers[field.name] = String(answer);
         }
       }
     }

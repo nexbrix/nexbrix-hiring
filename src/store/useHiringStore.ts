@@ -1,23 +1,44 @@
 import { create } from "zustand";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import type {
+  Organization,
+  Job,
+  Application,
+  ApplicationStatus,
+  JobFormData,
+} from "@/types/hiring";
+
+// ─── Axios error helper ───────────────────────────────────────────────────────
+
+function extractError(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    return (err.response?.data as { error?: string })?.error ?? fallback;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+
+// ─── Store types ──────────────────────────────────────────────────────────────
 
 interface HiringState {
-  organizations: any[];
-  selectedOrg: any | null;
-  jobs: any[];
-  applications: any[];
+  organizations: Organization[];
+  selectedOrg: Organization | null;
+  jobs: Job[];
+  applications: Application[];
   loadingOrgs: boolean;
   loadingData: boolean;
   error: string;
-  setOrganizations: (orgs: any[]) => void;
-  setSelectedOrg: (org: any) => void;
+  setOrganizations: (orgs: Organization[]) => void;
+  setSelectedOrg: (org: Organization) => void;
   fetchOrganizations: () => Promise<void>;
-  createOrganization: (name: string, slug: string) => Promise<any>;
+  createOrganization: (name: string, slug: string) => Promise<Organization>;
   fetchOrgData: () => Promise<void>;
-  createJob: (jobData: any) => Promise<void>;
-  updateJob: (jobId: string, jobData: any) => Promise<void>;
-  updateApplicationStatus: (appId: string, status: string) => Promise<void>;
+  createJob: (jobData: JobFormData) => Promise<void>;
+  updateJob: (jobId: string, jobData: JobFormData) => Promise<void>;
+  updateApplicationStatus: (appId: string, status: ApplicationStatus) => Promise<void>;
 }
+
+// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useHiringStore = create<HiringState>((set, get) => ({
   organizations: [],
@@ -34,15 +55,15 @@ export const useHiringStore = create<HiringState>((set, get) => ({
   fetchOrganizations: async () => {
     set({ loadingOrgs: true, error: "" });
     try {
-      const res = await axios.get("/api/organizations");
-      const orgs = res.data.organizations || [];
+      const res = await axios.get<{ organizations: Organization[] }>("/api/organizations");
+      const orgs = res.data.organizations ?? [];
       set({ organizations: orgs, loadingOrgs: false });
       if (orgs.length > 0 && !get().selectedOrg) {
         set({ selectedOrg: orgs[0] });
       }
-    } catch (err: any) {
+    } catch (err) {
       set({
-        error: err.response?.data?.error || "Failed to load organizations",
+        error: extractError(err, "Failed to load organizations"),
         loadingOrgs: false,
       });
     }
@@ -51,14 +72,13 @@ export const useHiringStore = create<HiringState>((set, get) => ({
   createOrganization: async (name, slug) => {
     set({ error: "" });
     try {
-      const res = await axios.post("/api/organizations", { name, slug });
+      const res = await axios.post<{ organization: Organization }>("/api/organizations", { name, slug });
       const org = res.data.organization;
       await get().fetchOrganizations();
       set({ selectedOrg: org });
       return org;
-    } catch (err: any) {
-      const errorMsg =
-        err.response?.data?.error || "Failed to create organization";
+    } catch (err) {
+      const errorMsg = extractError(err, "Failed to create organization");
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }
@@ -70,17 +90,17 @@ export const useHiringStore = create<HiringState>((set, get) => ({
     set({ loadingData: true, error: "" });
     try {
       const [jobsRes, appsRes] = await Promise.all([
-        axios.get(`/api/jobs?organizationId=${org.id}`),
-        axios.get(`/api/applications?organizationId=${org.id}`),
+        axios.get<{ jobs: Job[] }>(`/api/jobs?organizationId=${org.id}`),
+        axios.get<{ applications: Application[] }>(`/api/applications?organizationId=${org.id}`),
       ]);
       set({
-        jobs: jobsRes.data.jobs || [],
-        applications: appsRes.data.applications || [],
+        jobs: jobsRes.data.jobs ?? [],
+        applications: appsRes.data.applications ?? [],
         loadingData: false,
       });
-    } catch (err: any) {
+    } catch (err) {
       set({
-        error: err.response?.data?.error || "Failed to fetch dashboard data",
+        error: extractError(err, "Failed to fetch dashboard data"),
         loadingData: false,
       });
     }
@@ -94,8 +114,8 @@ export const useHiringStore = create<HiringState>((set, get) => ({
         ...jobData,
       });
       await get().fetchOrgData();
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || "Failed to publish job";
+    } catch (err) {
+      const errorMsg = extractError(err, "Failed to publish job");
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }
@@ -109,14 +129,14 @@ export const useHiringStore = create<HiringState>((set, get) => ({
         ...jobData,
       });
       await get().fetchOrgData();
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || "Failed to update job";
+    } catch (err) {
+      const errorMsg = extractError(err, "Failed to update job");
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }
   },
 
-  updateApplicationStatus: async (appId, status) => {
+  updateApplicationStatus: async (appId: string, status: ApplicationStatus) => {
     // Optimistic update
     set((state) => ({
       applications: state.applications.map((app) =>
@@ -125,11 +145,10 @@ export const useHiringStore = create<HiringState>((set, get) => ({
     }));
     try {
       await axios.patch(`/api/applications/${appId}`, { status });
-    } catch (err: any) {
+    } catch (err) {
       // Revert on failure
       await get().fetchOrgData();
-      const errorMsg =
-        err.response?.data?.error || "Failed to update application status";
+      const errorMsg = extractError(err, "Failed to update application status");
       set({ error: errorMsg });
       throw new Error(errorMsg);
     }

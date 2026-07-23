@@ -1,8 +1,18 @@
 import { create } from "zustand";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
+import type { Job } from "@/types/hiring";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type CustomAnswerValue = string | boolean | string[] | number;
+
+interface PresignedUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+}
 
 interface ApplyState {
-  job: any | null;
+  job: Job | null;
   loading: boolean;
   submitLoading: boolean;
   uploading: boolean;
@@ -15,7 +25,7 @@ interface ApplyState {
   candidateEmail: string;
   candidatePhone: string;
   coverLetter: string;
-  customAnswers: Record<string, any>;
+  customAnswers: Record<string, CustomAnswerValue>;
 
   setCandidateName: (name: string) => void;
   setCandidateEmail: (email: string) => void;
@@ -23,13 +33,23 @@ interface ApplyState {
   setCoverLetter: (letter: string) => void;
   setResumeFile: (file: File | null) => void;
   setCustomFile: (fieldName: string, file: File) => void;
-  setCustomAnswer: (fieldName: string, value: any) => void;
+  setCustomAnswer: (fieldName: string, value: CustomAnswerValue) => void;
 
   fetchJob: (jobId: string) => Promise<void>;
   submitApplication: (jobId: string) => Promise<void>;
   setError: (msg: string) => void;
   reset: () => void;
 }
+
+function extractError(err: unknown, fallback: string): string {
+  if (err instanceof AxiosError) {
+    return (err.response?.data as { error?: string })?.error ?? fallback;
+  }
+  if (err instanceof Error) return err.message;
+  return fallback;
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useApplyStore = create<ApplyState>((set, get) => ({
   job: null,
@@ -65,11 +85,11 @@ export const useApplyStore = create<ApplyState>((set, get) => ({
   fetchJob: async (jobId) => {
     set({ loading: true, error: "" });
     try {
-      const res = await axios.get(`/api/jobs/${jobId}`);
+      const res = await axios.get<{ job: Job }>(`/api/jobs/${jobId}`);
       set({ job: res.data.job, loading: false });
-    } catch (err: any) {
+    } catch (err) {
       set({
-        error: err.response?.data?.error || "Failed to load job details",
+        error: extractError(err, "Failed to load job details"),
         loading: false,
       });
     }
@@ -83,7 +103,7 @@ export const useApplyStore = create<ApplyState>((set, get) => ({
 
       if (resumeFile) {
         set({ uploading: true });
-        const presignedRes = await axios.post("/api/upload/presigned-url", {
+        const presignedRes = await axios.post<PresignedUrlResponse>("/api/upload/presigned-url", {
           fileName: resumeFile.name,
           fileType: resumeFile.type,
         });
@@ -95,10 +115,10 @@ export const useApplyStore = create<ApplyState>((set, get) => ({
       }
 
       const customFiles = get().customFiles;
-      const updatedCustomAnswers = { ...get().customAnswers };
+      const updatedCustomAnswers: Record<string, CustomAnswerValue> = { ...get().customAnswers };
 
       for (const [fieldName, file] of Object.entries(customFiles)) {
-        const presignedRes = await axios.post("/api/upload/presigned-url", {
+        const presignedRes = await axios.post<PresignedUrlResponse>("/api/upload/presigned-url", {
           fileName: file.name,
           fileType: file.type,
         });
@@ -122,9 +142,9 @@ export const useApplyStore = create<ApplyState>((set, get) => ({
       });
 
       set({ success: true, submitLoading: false });
-    } catch (err: any) {
+    } catch (err) {
       set({
-        error: err.response?.data?.error || "Failed to submit application",
+        error: extractError(err, "Failed to submit application"),
         submitLoading: false,
         uploading: false,
       });
